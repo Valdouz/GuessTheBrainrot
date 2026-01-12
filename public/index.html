@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu Sons & Images Multi</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Écran d'accueil (caché après connexion) -->
+<div id="lobbyScreen" class="lobby-screen">
+    <div class="lobby-container">
+        <h1>🎵 Sons & Images</h1>
+        <input id="playerNameInput" type="text" placeholder="Votre pseudo" maxlength="15">
+        <input id="roomIdInput" type="text" placeholder="Code room (ex: abc123)" maxlength="20">
+        <button id="joinBtn">Rejoindre la partie</button>
+    </div>
+</div>
+
+<!-- Écran de jeu (visible après connexion) -->
+<div id="gameScreen" class="container" style="display: none;">
+    <div class="main-game">
+        <h1>Jeu Sons & Images</h1>
+        <p id="score">Chargement...</p>
+        <p id="tour">Attente son...</p>
+        <button id="playSound">🎵 Jouer son</button>
+        <div id="images" class="images"></div>
+        <audio id="audioPlayer" preload="auto"></audio>
+    </div>
+    <div id="playersList" class="players-sidebar">
+        <h3>Joueurs (<span id="playerCount">0</span>)</h3>
+        <ul id="playersUl"></ul>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
