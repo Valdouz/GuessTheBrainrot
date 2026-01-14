@@ -3,28 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jeu Sons & Images Multi</title>
+    <title>Guess the Brainrot</title>
     <script src="/socket.io/socket.io.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<!-- Écran d'accueil (caché après connexion) -->
-<div id="lobbyScreen" class="lobby-screen">
+<div id="pseudoScreen" class="pseudo-screen">
     <div class="lobby-container">
-        <h1>🎵 Sons & Images</h1>
-        <input id="playerNameInput" type="text" placeholder="Votre pseudo" maxlength="15">
-        <input id="roomIdInput" type="text" placeholder="Code room (ex: abc123)" maxlength="20">
-        <button id="joinBtn">Rejoindre la partie</button>
+        <h1>🎮 Guess the Brainrot</h1>
+        <p>Choisis ton pseudo :</p>
+        <input id="globalPseudoInput" type="text" placeholder="Ton pseudo" maxlength="20">
+        <button id="setPseudoBtn">🚀 Entrer dans le jeu</button>
     </div>
 </div>
 
-<!-- Écran de jeu (visible après connexion) -->
-<div id="gameScreen" class="container" style="display: none;">
+<div id="lobbyScreen" class="lobby-screen" style="display:none;">
+    <div class="lobby-container">
+        <h1>🎮 Guess the Brainrot</h1>
+
+        <div class="create-section">
+            <h3>🎉 Créer Room</h3>
+            <div class="room-type-toggle">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="roomTypeToggle">
+                    <span class="slider"></span>
+                </label>
+                <span id="roomTypeLabel">Publique</span>
+            </div>
+            <input id="roomNameInput" type="text" placeholder="Nom room (optionnel)">
+            <button id="createRoomBtn">Créer Room</button>
+            <div id="privateCode" class="private-code" style="display:none;"></div>
+        </div>
+
+        <div class="public-rooms">
+            <h3>🏛️ Rooms Publiques</h3>
+            <div id="publicRoomsList">Chargement...</div>
+        </div>
+
+        <div class="join-section">
+            <h3>🔑 Rejoindre par Code</h3>
+            <input id="joinRoomCode" type="text" placeholder="ABC123" maxlength="6">
+            <button id="joinByCodeBtn">Rejoindre</button>
+        </div>
+    </div>
+</div>
+
+<div id="gameScreen" class="container" style="display:none;">
     <div class="main-game">
-        <h1>Jeu Sons & Images</h1>
+        <h1 id="roomTitle">Jeu</h1>
         <p id="score">Chargement...</p>
-        <p id="tour">Attente son...</p>
-        <button id="playSound">🎵 Jouer son</button>
+        <p id="tour">Attente...</p>
+        <button id="playSound" style="display:none;">🎵 Jouer Son</button>
+        <button id="startGameBtn" style="display:none;">🚀 Démarrer Jeu</button>
         <div id="images" class="images"></div>
         <audio id="audioPlayer" preload="auto"></audio>
     </div>

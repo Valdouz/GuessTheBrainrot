@@ -1,77 +1,183 @@
 const socket = io();
-let roomId, playerName, myPlayerId;
-const sons = ['chien', 'chat', 'oiseau'];
+let roomId, myPlayerId, isAdmin = false, myPseudo = '', isPublicRoom = true;
 
+const sons = ['chien', 'chat', 'oiseau'];
+const pseudoScreen = document.getElementById('pseudoScreen');
 const lobbyScreen = document.getElementById('lobbyScreen');
 const gameScreen = document.getElementById('gameScreen');
-const playerNameInput = document.getElementById('playerNameInput');
-const roomIdInput = document.getElementById('roomIdInput');
-const joinBtn = document.getElementById('joinBtn');
+const playerCountEl = document.getElementById('playerCount');
 
-joinBtn.onclick = () => {
-    playerName = playerNameInput.value.trim() || 'Anonyme';
-    roomId = roomIdInput.value.trim().toLowerCase() || 'general';
-    if (playerName && roomId) {
-        socket.emit('join-room', { roomId, playerName });
+// FIX URL Rejoindre direct
+function initFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomFromUrl = urlParams.get('room');
+    if (roomFromUrl && myPseudo) {
+        document.getElementById('joinRoomCode').value = roomFromUrl.toUpperCase();
+        document.getElementById('joinByCodeBtn').click();
+    }
+}
+
+// Écran pseudo
+document.getElementById('setPseudoBtn').onclick = () => {
+    myPseudo = document.getElementById('globalPseudoInput').value.trim();
+    if (myPseudo) {
+        pseudoScreen.style.display = 'none';
+        lobbyScreen.style.display = 'flex';
+        setTimeout(initFromUrl, 500);
+    } else {
+        alert('Entre un pseudo !');
     }
 };
 
-socket.on('init-room', (data) => {
-    myPlayerId = data.myId;
-    lobbyScreen.style.display = 'none';
-    gameScreen.style.display = 'block';
-    document.getElementById('tour').textContent = `Room: ${data.roomId}`;
-    updatePlayers(data.players, data.scores);
+// Toggle publique/privée
+document.getElementById('roomTypeToggle').onchange = (e) => {
+    isPublicRoom = !e.target.checked;
+    const label = document.getElementById('roomTypeLabel');
+    const privateCode = document.getElementById('privateCode');
+    if (isPublicRoom) {
+        label.textContent = 'Publique';
+        label.className = 'publique';
+        privateCode.style.display = 'none';
+    } else {
+        label.textContent = 'Privée';
+        label.className = 'privee';
+        privateCode.style.display = 'block';
+        privateCode.textContent = 'Code privé généré après création';
+    }
+};
+
+// Créer room
+document.getElementById('createRoomBtn').onclick = () => {
+    const roomName = document.getElementById('roomNameInput').value.trim();
+    const data = { playerName: myPseudo, roomName, isPublic: isPublicRoom };
+    socket.emit('create-room', data);
+};
+
+// Récupère vrai code
+socket.on('room-created', (data) => {
+    const privateCode = document.getElementById('privateCode');
+    if (!data.isPublic) {
+        privateCode.innerHTML = `<strong>${data.code}</strong><br><small>Copie ce code pour tes amis !</small>`;
+        privateCode.style.color = '#2196F3';
+        privateCode.style.fontSize = '20px';
+    }
 });
 
-socket.on('error', (msg) => alert('Erreur: ' + msg));
+// Rejoindre
+document.getElementById('joinByCodeBtn').onclick = () => {
+    const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
+    if (code && myPseudo) {
+        socket.emit('join-room', { roomId: code, playerName: myPseudo });
+    } else {
+        alert('Code ou pseudo manquant !');
+    }
+};
 
-socket.on('sound-played', (sound) => {
-    document.getElementById('audioPlayer').src = `sounds/${sound}.mp3`;
-    document.getElementById('audioPlayer').play();
-    genererImages(sound);
-});
-
-socket.on('correct-answer', (data) => alert(`${data.players[data.player] || data.player} a trouvé !`));
-socket.on('wrong-answer', (data) => alert(`${data.players[data.player] || data.player} s'est trompé.`));
-
-document.getElementById('playSound').onclick = () => socket.emit('play-sound', roomId);
-
-function genererImages(correctSound = null) {
-    const imagesDiv = document.getElementById('images');
-    imagesDiv.innerHTML = '';
-    sons.forEach(nom => {
-        const btn = document.createElement('img');
-        btn.src = `images/${nom}.jpg`;
-        btn.classList.add('image-btn');
-        btn.alt = nom;
+// Liste des rooms publiques - CORRIGÉ
+socket.on('public-rooms-update', (roomsList) => {
+    const listDiv = document.getElementById('publicRoomsList');
+    if (roomsList.length === 0) {
+        listDiv.innerHTML = '<p>Aucune room publique</p>';
+        return;
+    }
+    listDiv.innerHTML = '';
+    roomsList.forEach(room => {
+        const btn = document.createElement('button');
+        btn.className = 'room-btn';
+        if (room.playerCount >= room.maxPlayers) {
+            btn.classList.add('full');
+        }
+        btn.innerHTML = `
+      <strong>${room.name}</strong><br>
+      <small>Admin: ${room.adminName}</small><br>
+      <small>${room.playerCount}/${room.maxPlayers} joueurs</small><br>
+      <small>Code: ${room.code}</small>
+    `;
         btn.onclick = () => {
-            socket.emit('answer', { roomId, guess: nom });
-            document.querySelectorAll('.image-btn').forEach(img => img.style.pointerEvents = 'none');
-            setTimeout(() => location.reload(), 2000); // Reset images
+            if (myPseudo) {
+                socket.emit('join-room', { roomId: room.code, playerName: myPseudo });
+            }
         };
-        imagesDiv.appendChild(btn);
+        listDiv.appendChild(btn);
     });
-}
+});
 
-function updatePlayers(players, scores = {}) {
+// initFromUrl Check URL après refresh rooms
+
+// Update joueurs temps réel
+function updatePlayers(players, scores) {
     const ul = document.getElementById('playersUl');
     const countEl = document.getElementById('playerCount');
     ul.innerHTML = '';
     let count = 0;
     Object.keys(players).forEach(id => {
         const li = document.createElement('li');
-        const score = scores[id] || 0;
-        li.textContent = `${players[id]} (${score} pts)`;
-        if (id === myPlayerId) li.classList.add('you');
+        li.textContent = `${players[id]} (${scores[id] || 0} pts)`;
+        if (id === myPlayerId) {
+            li.classList.add('you');
+        }
         ul.appendChild(li);
         count++;
     });
     countEl.textContent = count;
-    document.getElementById('score').textContent = `Room ${roomId} | ${count} joueurs`;
 }
 
-// Événements liste
 socket.on('player-joined', (data) => updatePlayers(data.players, data.scores));
 socket.on('player-left', (data) => updatePlayers(data.players, data.scores));
 socket.on('scores-update', (data) => updatePlayers(data.players, data.scores));
+
+socket.on('init-room', (data) => {
+    roomId = data.roomId;
+    myPlayerId = data.myId;
+    isAdmin = data.isAdmin;
+    lobbyScreen.style.display = 'none';
+    gameScreen.style.display = 'flex';
+    document.getElementById('roomTitle').textContent = `Room ${roomId}`;
+    updatePlayers(data.players, data.scores);
+    // Nettoie URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+});
+
+socket.on('error', (msg) => alert(msg));
+
+document.getElementById('playSound').onclick = () => socket.emit('play-sound', roomId);
+document.getElementById('startGameBtn').onclick = () => {
+    if (isAdmin) socket.emit('start-game', roomId);
+};
+
+socket.on('sound-played', (sound) => {
+    document.getElementById('audioPlayer').src = `sons/${sound}.mp3`;
+    document.getElementById('audioPlayer').play();
+    document.getElementById('playSound').style.display = 'none';
+    genererImages(sound);
+});
+
+socket.on('game-started', (sound) => {
+    document.getElementById('audioPlayer').src = `sons/${sound}.mp3`;
+    document.getElementById('audioPlayer').play();
+    genererImages(sound);
+});
+
+document.getElementById('images').onclick = (e) => {
+    if (e.target.classList.contains('image-btn')) {
+        const guess = e.target.alt;
+        socket.emit('answer', { roomId, guess });
+        document.querySelectorAll('.image-btn').forEach(img => img.style.pointerEvents = 'none');
+    }
+};
+
+function genererImages(sound) {
+    const imagesDiv = document.getElementById('images');
+    imagesDiv.innerHTML = '';
+    sons.forEach(nom => {
+        const img = document.createElement('img');
+        img.src = `images/${nom}.jpg`;
+        img.classList.add('image-btn');
+        img.alt = nom;
+        img.title = nom;
+        imagesDiv.appendChild(img);
+    });
+}
+
+socket.on('correct-answer', (data) => alert('Correct !'));
+socket.on('wrong-answer', (data) => alert('Faux !'));
